@@ -69,18 +69,16 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
       {/* Header */}
-      <header className="border-b border-border bg-secondary/20 backdrop-blur-md sticky top-0 z-50">
+      <header className="bg-gradient-to-b from-secondary/40 to-transparent backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
               <Scissors className="text-white w-5 h-5" />
             </div>
-            <h1 className="font-bold text-xl tracking-tight">GridSlice<span className="text-primary font-light">Pro</span></h1>
+            <h1 className="font-bold text-xl tracking-tight">Slice<span className="text-primary font-light">Meow</span></h1>
           </div>
-          <div className="text-sm text-muted-foreground hidden md:block">
-             {step === 'upload' && "1. 上传图片"}
-             {step === 'edit' && "2. 配置网格"}
-             {step === 'result' && "3. 下载结果"}
+          <div className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            切图喵
           </div>
         </div>
       </header>
@@ -88,20 +86,25 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
          {/* Background Decoration */}
-         <div className="absolute top-0 left-0 w-full h-full pointer-events-none -z-10 opacity-30">
-            <div className="absolute top-[20%] left-[10%] w-96 h-96 bg-primary/20 rounded-full blur-[128px]"></div>
-            <div className="absolute bottom-[20%] right-[10%] w-96 h-96 bg-purple-500/10 rounded-full blur-[128px]"></div>
+         <div className="absolute top-0 left-0 w-full h-full pointer-events-none -z-10">
+            <div className="absolute top-[20%] left-[10%] w-96 h-96 bg-primary/30 rounded-full blur-[128px] animate-pulse-glow"></div>
+            <div className="absolute bottom-[20%] right-[10%] w-96 h-96 bg-purple-500/20 rounded-full blur-[128px] animate-pulse-glow" style={{animationDelay: '2s'}}></div>
+            <div className="absolute top-[50%] left-[50%] w-64 h-64 bg-cyan-500/10 rounded-full blur-[100px] animate-pulse-glow" style={{animationDelay: '1s'}}></div>
          </div>
 
         {step === 'upload' && (
-          <div className="w-full animate-accordion-down">
-            <div className="text-center mb-10 space-y-2">
-              <h2 className="text-4xl font-bold tracking-tight text-white">精准切分图片</h2>
-              <p className="text-muted-foreground text-lg max-w-lg mx-auto">
+          <div className="w-full">
+            <div className="text-center mb-12 space-y-4">
+              <h2 className="text-5xl font-bold tracking-tight text-white animate-fade-in-up opacity-0">
+                精准切分图片
+              </h2>
+              <p className="text-muted-foreground text-lg max-w-lg mx-auto animate-fade-in-up opacity-0 delay-100">
                 上传您的精灵图或九宫格图片，自由调整切割线，几秒钟内即可生成并下载独立的切片资源。
               </p>
             </div>
-            <FileUpload onFileSelect={handleFileSelect} />
+            <div className="animate-fade-in-up opacity-0 delay-200">
+              <FileUpload onFileSelect={handleFileSelect} />
+            </div>
           </div>
         )}
 
@@ -136,8 +139,8 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground bg-secondary/10">
-        <p>&copy; {new Date().getFullYear()} GridSlice Pro. 所有图片处理均在您的浏览器本地进行，安全无忧。</p>
+      <footer className="py-6 text-center text-sm text-muted-foreground/60 bg-gradient-to-t from-secondary/20 to-transparent">
+        <p>&copy; {new Date().getFullYear()} SliceMeow 切图喵. 所有图片处理均在您的浏览器本地进行，安全无忧。</p>
       </footer>
     </div>
   );
