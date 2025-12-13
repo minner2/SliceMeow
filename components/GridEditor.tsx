@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, MouseEvent, WheelEvent } from 'react';
 import { GridConfig } from '../types';
-import { MoveHorizontal, MoveVertical, RotateCcw, LayoutGrid, ZoomIn, SeparatorHorizontal } from 'lucide-react';
+import { MoveHorizontal, MoveVertical, RotateCcw, LayoutGrid, SeparatorHorizontal } from 'lucide-react';
 
 interface GridEditorProps {
   imageSrc: string;
@@ -14,6 +14,10 @@ const GridEditor: React.FC<GridEditorProps> = ({ imageSrc, config, onChangeConfi
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggingLine, setDraggingLine] = useState<{ type: 'h' | 'v', index: number } | null>(null);
   const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [spacePressed, setSpacePressed] = useState(false);
+  const lastPanPos = useRef({ x: 0, y: 0 });
 
   // Initialize lines when row/col count changes
   useEffect(() => {
@@ -30,6 +34,28 @@ const GridEditor: React.FC<GridEditorProps> = ({ imageSrc, config, onChangeConfi
     }
   }, [config.rows, config.cols]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Space key for panning
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        setSpacePressed(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setSpacePressed(false);
+        setIsPanning(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
   const handleMouseDown = (type: 'h' | 'v', index: number, e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -37,6 +63,16 @@ const GridEditor: React.FC<GridEditorProps> = ({ imageSrc, config, onChangeConfi
   };
 
   const handleMouseMove = (e: MouseEvent) => {
+    // Handle panning
+    if (isPanning) {
+      setPan({
+        x: pan.x + e.clientX - lastPanPos.current.x,
+        y: pan.y + e.clientY - lastPanPos.current.y,
+      });
+      lastPanPos.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
     if (!draggingLine || !containerRef.current) return;
 
     const rect = containerRef.current.getBoundingClientRect();
@@ -66,12 +102,21 @@ const GridEditor: React.FC<GridEditorProps> = ({ imageSrc, config, onChangeConfi
 
   const handleMouseUp = () => {
     setDraggingLine(null);
+    setIsPanning(false);
+  };
+
+  const handleEditorMouseDown = (e: MouseEvent) => {
+    if (spacePressed) {
+      e.preventDefault();
+      setIsPanning(true);
+      lastPanPos.current = { x: e.clientX, y: e.clientY };
+    }
   };
 
   const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
+      if (e.altKey) {
           e.preventDefault();
-          const delta = -e.deltaY * 0.001;
+          const delta = -e.deltaY * 0.01;
           const newScale = Math.min(Math.max(0.1, scale + delta), 5);
           setScale(newScale);
       }
@@ -82,99 +127,106 @@ const GridEditor: React.FC<GridEditorProps> = ({ imageSrc, config, onChangeConfi
     const newVLines = Array.from({ length: config.cols - 1 }, (_, i) => ((i + 1) / config.cols) * 100);
     onChangeConfig({ ...config, horizontalLines: newHLines, verticalLines: newVLines });
     setScale(1);
+    setPan({ x: 0, y: 0 });
   }
 
   return (
-    <div className="flex flex-col h-full w-full max-w-7xl mx-auto p-4 gap-6">
-      
-      {/* Controls Header */}
-      <div className="bg-secondary/50 backdrop-blur-sm p-4 rounded-xl border border-border flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-3">
-             <div className="p-2 bg-primary/20 rounded-lg text-primary">
-                <LayoutGrid size={20} />
-             </div>
-             <div>
-                <label className="block text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">行数</label>
-                <input 
-                  type="number" 
-                  min="1" 
-                  max="20"
-                  value={config.rows}
-                  onChange={(e) => onChangeConfig({...config, rows: parseInt(e.target.value) || 1})}
-                  className="w-16 bg-background border border-border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-primary outline-none"
-                />
-             </div>
-             <span className="text-muted-foreground font-light text-xl mt-4">×</span>
-             <div>
-                <label className="block text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">列数</label>
-                <input 
-                  type="number" 
-                  min="1" 
-                  max="20"
-                  value={config.cols}
-                  onChange={(e) => onChangeConfig({...config, cols: parseInt(e.target.value) || 1})}
-                  className="w-16 bg-background border border-border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-primary outline-none"
-                />
-             </div>
+    <div className="flex h-full w-full p-4 gap-4">
+      {/* Sidebar Controls */}
+      <div className="w-56 flex-shrink-0 bg-secondary/50 backdrop-blur-sm p-4 rounded-xl border border-border flex flex-col gap-5">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary/20 rounded-lg text-primary">
+            <LayoutGrid size={20} />
           </div>
-
-          <div className="h-8 w-px bg-border hidden sm:block"></div>
-
-          <div className="flex items-center gap-3">
-             <div className="p-2 bg-primary/20 rounded-lg text-primary">
-                <SeparatorHorizontal size={20} />
-             </div>
-             <div className="flex flex-col">
-                <label className="block text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1 flex justify-between">
-                    切割线粗细 <span className="text-primary">{config.gutterSize}px</span>
-                </label>
-                <input 
-                    type="range" 
-                    min="0" max="50" step="1"
-                    value={config.gutterSize}
-                    onChange={(e) => onChangeConfig({...config, gutterSize: parseInt(e.target.value)})}
-                    className="w-32 h-2 bg-background rounded-lg appearance-none cursor-pointer accent-primary"
-                    title="调节此选项可自动消除图片间的黑边或间隙"
-                />
-             </div>
+          <div className="flex gap-2 items-center">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">行</label>
+              <input
+                type="number" min="1" max="20" value={config.rows}
+                onChange={(e) => onChangeConfig({...config, rows: parseInt(e.target.value) || 1})}
+                className="w-14 bg-background border border-border rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-primary outline-none"
+              />
+            </div>
+            <span className="text-muted-foreground mt-5">×</span>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">列</label>
+              <input
+                type="number" min="1" max="20" value={config.cols}
+                onChange={(e) => onChangeConfig({...config, cols: parseInt(e.target.value) || 1})}
+                className="w-14 bg-background border border-border rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-primary outline-none"
+              />
+            </div>
           </div>
-
-          <div className="h-8 w-px bg-border hidden sm:block"></div>
-
-          <button 
-            onClick={resetGrid}
-            className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
-          >
-            <RotateCcw size={14} /> 重置
-          </button>
         </div>
 
-        <div className="flex items-center gap-3">
-            <button onClick={onBack} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                取消
-            </button>
-            <button 
-                onClick={onGenerate}
-                className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-medium shadow-lg shadow-primary/25 transition-all active:scale-95"
-            >
-                生成切片
-            </button>
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-primary/20 rounded-lg text-primary">
+              <SeparatorHorizontal size={20} />
+            </div>
+            <label className="text-xs text-muted-foreground">
+              切割线粗细 <span className="text-primary">{config.gutterSize}px</span>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onChangeConfig({...config, gutterSize: Math.max(0, config.gutterSize - 1)})}
+              className="w-7 h-7 rounded bg-border hover:bg-primary/30 text-foreground flex items-center justify-center"
+            >−</button>
+            <input
+              type="range" min="0" max="50" step="1" value={config.gutterSize}
+              onChange={(e) => onChangeConfig({...config, gutterSize: parseInt(e.target.value)})}
+              className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+            />
+            <button
+              onClick={() => onChangeConfig({...config, gutterSize: Math.min(50, config.gutterSize + 1)})}
+              className="w-7 h-7 rounded bg-border hover:bg-primary/30 text-foreground flex items-center justify-center"
+            >+</button>
+          </div>
+        </div>
+
+        <button
+          onClick={resetGrid}
+          className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors py-2 border border-border rounded-lg"
+        >
+          <RotateCcw size={14} /> 重置视图
+        </button>
+
+        <div className="flex-1" />
+
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>Alt + 滚轮：缩放 ({Math.round(scale * 100)}%)</p>
+          <p>空格 + 拖动：平移</p>
+          <p>拖动红线：调整分割</p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={onGenerate}
+            className="bg-primary hover:bg-primary/90 text-white px-4 py-2.5 rounded-lg font-medium shadow-lg shadow-primary/25 transition-all active:scale-95"
+          >
+            生成切片
+          </button>
+          <button onClick={onBack} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            取消
+          </button>
         </div>
       </div>
 
       {/* Editor Area */}
-      <div 
-        className="flex-1 bg-black/20 rounded-xl border border-border overflow-auto relative select-none flex items-center justify-center min-h-[500px]"
+      <div
+        className="flex-1 bg-black/20 rounded-xl border border-border overflow-hidden relative select-none flex items-center justify-center min-h-[500px]"
+        style={{ cursor: spacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
         onWheel={handleWheel}
+        onMouseDown={handleEditorMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
       >
-        <div 
+        <div
             className="relative shadow-2xl transition-transform duration-75 origin-center"
             ref={containerRef}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            style={{ transform: `scale(${scale})` }}
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}
         >
             <img 
                 src={imageSrc} 
@@ -238,13 +290,6 @@ const GridEditor: React.FC<GridEditorProps> = ({ imageSrc, config, onChangeConfi
                 })}
             </div>
         </div>
-      </div>
-      <div className="flex justify-between items-center text-muted-foreground text-sm">
-        <p>提示：您可以直接拖动红线来调整。</p>
-        <p className="flex items-center gap-2">
-            <ZoomIn size={14} />
-            按住 Ctrl + 滚轮缩放视图 ({Math.round(scale * 100)}%)
-        </p>
       </div>
     </div>
   );
