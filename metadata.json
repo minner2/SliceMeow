@@ -1,0 +1,5 @@
+{
+  "name": "GridSlice Pro",
+  "description": "专业的图片切片工具。上传网格图片，自定义切割线，自动去黑边，即时批量下载切片。",
+  "requestFramePermissions": []
+}
