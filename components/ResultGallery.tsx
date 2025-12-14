@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Slice } from '../types';
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
-import { Download, X, Crop, Layers, Trash2, Check, RefreshCw, MousePointer2, Move, GripHorizontal } from 'lucide-react';
+import { Download, X, Crop, Layers, Trash2, Check, RefreshCw, MousePointer2, Move, GripHorizontal, Film } from 'lucide-react';
+import GIF from 'gif.js';
 import { manualCropSlice, splitSlice } from '../services/imageProcessing';
 
 interface ResultGalleryProps {
@@ -17,7 +18,12 @@ interface ExtendedResultGalleryProps extends ResultGalleryProps {
 
 const ResultGallery: React.FC<ExtendedResultGalleryProps> = ({ slices, onBack, onUpdateSlice, onSetSlices }) => {
   const [isZipping, setIsZipping] = useState(false);
-  
+  const [isGeneratingGif, setIsGeneratingGif] = useState(false);
+  const [gifDelay, setGifDelay] = useState(100);
+  const [gifPreviewUrl, setGifPreviewUrl] = useState<string | null>(null);
+  const [gifBlob, setGifBlob] = useState<Blob | null>(null);
+  const [isGifModalOpen, setIsGifModalOpen] = useState(false);
+
   // Selection & Drag States
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -69,6 +75,86 @@ const ResultGallery: React.FC<ExtendedResultGalleryProps> = ({ slices, onBack, o
     save(content, "slices.zip");
 
     setIsZipping(false);
+  };
+
+  const generateGif = async (delay: number): Promise<{blob: Blob, url: string}> => {
+    const targetSlicesForGif = selectedIds.size > 0
+      ? slices.filter(s => selectedIds.has(s.id))
+      : slices;
+
+    const images: HTMLImageElement[] = await Promise.all(
+      targetSlicesForGif.map(slice => new Promise<HTMLImageElement>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = slice.url;
+      }))
+    );
+
+    const maxWidth = Math.max(...images.map(img => img.width));
+    const maxHeight = Math.max(...images.map(img => img.height));
+
+    return new Promise((resolve) => {
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: maxWidth,
+        height: maxHeight,
+        workerScript: import.meta.env.BASE_URL + 'gif.worker.js'
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = maxWidth;
+      canvas.height = maxHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+
+      for (const img of images) {
+        ctx.clearRect(0, 0, maxWidth, maxHeight);
+        const x = (maxWidth - img.width) / 2;
+        const y = (maxHeight - img.height) / 2;
+        ctx.drawImage(img, x, y);
+        gif.addFrame(ctx, { copy: true, delay });
+      }
+
+      gif.on('finished', (blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        resolve({ blob, url });
+      });
+
+      gif.render();
+    });
+  };
+
+  const handleOpenGifModal = () => {
+    const count = selectedIds.size > 0 ? selectedIds.size : slices.length;
+    if (count < 2) {
+      alert('至少需要2张图片才能生成GIF');
+      return;
+    }
+    setGifPreviewUrl(null);
+    setGifBlob(null);
+    setIsGifModalOpen(true);
+  };
+
+  const handleGeneratePreview = async () => {
+    setIsGeneratingGif(true);
+    const { blob, url } = await generateGif(gifDelay);
+    if (gifPreviewUrl) URL.revokeObjectURL(gifPreviewUrl);
+    setGifBlob(blob);
+    setGifPreviewUrl(url);
+    setIsGeneratingGif(false);
+  };
+
+  const handleDownloadGif = () => {
+    if (!gifBlob) return;
+    const save = (FileSaver as any).saveAs || FileSaver;
+    save(gifBlob, 'animation.gif');
+  };
+
+  const handleCloseGifModal = () => {
+    if (gifPreviewUrl) URL.revokeObjectURL(gifPreviewUrl);
+    setGifPreviewUrl(null);
+    setGifBlob(null);
+    setIsGifModalOpen(false);
   };
 
   // --- Drag and Drop Logic ---
@@ -223,7 +309,7 @@ const ResultGallery: React.FC<ExtendedResultGalleryProps> = ({ slices, onBack, o
              <button onClick={onBack} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground">返回编辑</button>
             <div className="h-6 w-px bg-border mx-2"></div>
 
-            <button 
+            <button
                 onClick={handleOpenBatchModal}
                 className="flex items-center gap-2 bg-secondary hover:bg-secondary/80 border border-border text-foreground px-4 py-2 rounded-lg font-medium transition-colors"
             >
@@ -231,7 +317,16 @@ const ResultGallery: React.FC<ExtendedResultGalleryProps> = ({ slices, onBack, o
                 {selectedIds.size > 0 ? '批量切割选中项' : '批量二次切割'}
             </button>
 
-            <button 
+            <button
+                onClick={handleOpenGifModal}
+                disabled={slices.length < 2}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+            >
+                <Film size={16} />
+                {selectedIds.size > 0 ? `合成GIF(${selectedIds.size}张)` : '合成GIF'}
+            </button>
+
+            <button
                 onClick={handleDownloadAll}
                 disabled={isZipping}
                 className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg font-medium shadow-lg shadow-primary/25 transition-all active:scale-95 disabled:opacity-50"
@@ -547,6 +642,73 @@ const ResultGallery: React.FC<ExtendedResultGalleryProps> = ({ slices, onBack, o
                               </div>
                           </div>
                       </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* GIF Preview Modal */}
+      {isGifModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+              <div className="bg-secondary border border-border rounded-xl p-6 max-w-2xl w-full flex flex-col gap-4">
+                  <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Film className="text-purple-500" size={20}/>
+                          合成 GIF 动画
+                      </h3>
+                      <button onClick={handleCloseGifModal}><X size={20} className="text-muted-foreground hover:text-white"/></button>
+                  </div>
+
+                  <div className="text-sm text-muted-foreground">
+                      {selectedIds.size > 0
+                          ? `已选择 ${selectedIds.size} 张图片（可在选择模式下调整）`
+                          : `将使用全部 ${slices.length} 张图片（可先进入选择模式选择特定图片）`
+                      }
+                  </div>
+
+                  <div className="bg-black/50 rounded-lg h-64 flex items-center justify-center border border-border overflow-hidden">
+                      {isGeneratingGif ? (
+                          <div className="flex flex-col items-center gap-2">
+                              <RefreshCw className="animate-spin text-purple-500" size={32}/>
+                              <span className="text-sm text-muted-foreground">生成中...</span>
+                          </div>
+                      ) : gifPreviewUrl ? (
+                          <img src={gifPreviewUrl} alt="GIF Preview" className="max-h-full max-w-full object-contain"/>
+                      ) : (
+                          <span className="text-muted-foreground">点击"生成预览"查看效果</span>
+                      )}
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                          <label className="text-sm">帧间隔:</label>
+                          <input
+                              type="number"
+                              min="50" max="1000" step="50"
+                              value={gifDelay}
+                              onChange={(e) => setGifDelay(Number(e.target.value))}
+                              className="w-20 bg-black/30 border border-border rounded px-2 py-1 text-sm"
+                          />
+                          <span className="text-xs text-muted-foreground">ms (越小越快)</span>
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-2">
+                      <button
+                          onClick={handleGeneratePreview}
+                          disabled={isGeneratingGif}
+                          className="flex-1 py-2 rounded-lg border border-purple-500 text-purple-500 hover:bg-purple-500/10 font-medium disabled:opacity-50"
+                      >
+                          生成预览
+                      </button>
+                      <button
+                          onClick={handleDownloadGif}
+                          disabled={!gifBlob || isGeneratingGif}
+                          className="flex-1 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                          <Download size={16}/>
+                          下载 GIF
+                      </button>
                   </div>
               </div>
           </div>

@@ -1,6 +1,6 @@
 # ✂️ SliceMeow 切图喵
 
-一款简洁优雅的在线图片切割工具，专为精灵图、九宫格等图片资源的快速切分而设计。
+一款简洁优雅的在线图片切割工具，支持自由切割图片、二次切割、切图合成GIF。
 
 🔗 **在线体验**: [https://minner2.github.io/SliceMeow/](https://minner2.github.io/SliceMeow/)
 

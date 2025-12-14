@@ -4,7 +4,7 @@ import FileUpload from './components/FileUpload';
 import GridEditor from './components/GridEditor';
 import ResultGallery from './components/ResultGallery';
 import { generateSlices } from './services/imageProcessing';
-import { Scissors } from 'lucide-react';
+import { Scissors, Github } from 'lucide-react';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<'upload' | 'edit' | 'result'>('upload');
@@ -72,14 +72,14 @@ const App: React.FC = () => {
       <header className="bg-gradient-to-b from-secondary/40 to-transparent backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/30">
               <Scissors className="text-white w-5 h-5" />
             </div>
-            <h1 className="font-bold text-xl tracking-tight">Slice<span className="text-primary font-light">Meow</span></h1>
+            <h1 className="font-bold text-xl tracking-tight">Slice<span className="text-emerald-400 font-light">Meow</span></h1>
           </div>
-          <div className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            切图喵
-          </div>
+          <a href="https://github.com/minner2/SliceMeow" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-emerald-400 transition-colors">
+            <Github size={22} />
+          </a>
         </div>
       </header>
 
@@ -95,11 +95,11 @@ const App: React.FC = () => {
         {step === 'upload' && (
           <div className="w-full">
             <div className="text-center mb-12 space-y-4">
-              <h2 className="text-5xl font-bold tracking-tight text-white animate-fade-in-up opacity-0">
-                精准切分图片
+              <h2 className="text-6xl font-black tracking-tight animate-fade-in-up opacity-0">
+                <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-teal-400 bg-clip-text text-transparent">✂️ 切图喵</span>
               </h2>
               <p className="text-muted-foreground text-lg max-w-lg mx-auto animate-fade-in-up opacity-0 delay-100">
-                上传您的精灵图或九宫格图片，自由调整切割线，几秒钟内即可生成并下载独立的切片资源。
+                上传您的图片，自由调整切割线，几秒钟内即可生成并下载独立的切图资源，支持切图合成GIF动画。
               </p>
             </div>
             <div className="animate-fade-in-up opacity-0 delay-200">
