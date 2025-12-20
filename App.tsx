@@ -3,11 +3,12 @@ import { GridConfig, Slice } from './types';
 import FileUpload from './components/FileUpload';
 import GridEditor from './components/GridEditor';
 import ResultGallery from './components/ResultGallery';
+import PuzzleEditor from './components/PuzzleEditor';
 import { generateSlices } from './services/imageProcessing';
-import { Scissors, Github } from 'lucide-react';
+import { Scissors, Github, Puzzle } from 'lucide-react';
 
 const App: React.FC = () => {
-  const [step, setStep] = useState<'upload' | 'edit' | 'result'>('upload');
+  const [step, setStep] = useState<'upload' | 'edit' | 'result' | 'puzzle'>('upload');
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [config, setConfig] = useState<GridConfig>({
     rows: 3,
@@ -105,6 +106,16 @@ const App: React.FC = () => {
             <div className="animate-fade-in-up opacity-0 delay-200">
               <FileUpload onFileSelect={handleFileSelect} />
             </div>
+            <div className="mt-8 animate-fade-in-up opacity-0 delay-300">
+              <button
+                onClick={() => setStep('puzzle')}
+                className="flex items-center gap-3 mx-auto px-6 py-3 bg-secondary/50 hover:bg-secondary/80 border border-primary/20 hover:border-primary/40 rounded-xl transition-all duration-300 group"
+              >
+                <Puzzle className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-foreground">拼图工具</span>
+                <span className="text-xs text-muted-foreground">粘贴多张图片拼接</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -129,12 +140,18 @@ const App: React.FC = () => {
 
         {step === 'result' && (
           <div className="w-full h-full animate-accordion-down">
-            <ResultGallery 
-                slices={slices} 
-                onBack={() => setStep('edit')} 
+            <ResultGallery
+                slices={slices}
+                onBack={() => setStep('edit')}
                 onUpdateSlice={handleSliceUpdate}
                 onSetSlices={handleSetSlices}
             />
+          </div>
+        )}
+
+        {step === 'puzzle' && (
+          <div className="w-full h-full animate-accordion-down">
+            <PuzzleEditor onBack={() => setStep('upload')} />
           </div>
         )}
       </main>
